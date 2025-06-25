@@ -131,7 +131,7 @@ function ShowPopupMessage(opts)
     if not popupActive then DisplayNextPopup() end
 end
 
-local function DisplayNextPopup()
+function DisplayNextPopup()
     if #popupQueue == 0 then
         popupActive = false
         return
