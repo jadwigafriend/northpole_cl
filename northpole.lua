@@ -88,44 +88,13 @@ end
 -- Start connection
 ws:open()
 
+
+
+-- Funkle Features
+
 local popupQueue = {}
 local popupActive = false
 
--- ✅ Optional: load custom fonts from data/fonts/*.ttf
-local function RegisterCustomFont(name, size)
-    surface.CreateFont("PopupFont_" .. name .. "_" .. size, {
-        font = name,
-        size = size,
-        weight = 600,
-        antialias = true
-    })
-    return "PopupFont_" .. name .. "_" .. size
-end
-
--- ✅ Utility: Parse [color] tags like [red], [white]
-local function ParseColorTags(str)
-    local segments = {}
-    local tagToColor = {
-        red = Color(255, 80, 80),
-        blue = Color(80, 150, 255),
-        white = Color(255, 255, 255),
-        green = Color(100, 255, 100),
-        yellow = Color(255, 255, 100),
-    }
-
-    local currentColor = Color(255, 255, 255)
-    for token in string.gmatch(str, "([^%[]+)%]") do
-        local tag = string.match(token, "^(%a+)%[")
-        if tag and tagToColor[tag] then
-            currentColor = tagToColor[tag]
-            token = string.gsub(token, tag .. "%[", "")
-        end
-        table.insert(segments, { text = token, color = currentColor })
-    end
-    return segments
-end
-
--- ✅ Main display function
 function ShowPopupMessage(opts)
     table.insert(popupQueue, opts)
     if not popupActive then DisplayNextPopup() end
@@ -143,102 +112,81 @@ function DisplayNextPopup()
     -- Defaults
     local text = opts.text or "Hello!"
     local duration = opts.duration or 4
-    local fontName = opts.font or "Trebuchet24"
-    local fontSize = opts.fontSize or 24
-    local fallbackColor = opts.color or Color(255, 255, 255)
+    local font = "Trebuchet24"
+    local fontSize = opts.fontSize or 36
+    local color = opts.color or Color(255, 255, 255)
     local icon = opts.icon
     local soundEnabled = opts.sound ~= false
     local typeMode = opts.typeMode or "letter"
     local animateIcon = opts.animateIcon
     local typingSound = opts.typingSound or "ui/buttonrollover.wav"
 
-    -- Register custom font
-    local fontID = RegisterCustomFont(fontName, fontSize)
-
-    -- Safe Material load
-    local iconMat = nil
+    local iconMat
     if icon then
         local ok, mat = pcall(Material, icon, "noclamp smooth")
         if ok and mat then iconMat = mat end
     end
 
+    -- Create Panel
     local panel = vgui.Create("DPanel")
-    panel:SetSize(800, 120)
-    panel:SetPos((ScrW() - panel:GetWide()) / 2, ScrH() * 0.15)
+    panel:SetSize(ScrW(), 60)
+    panel:SetPos(0, ScrH() * 0.15)
     panel:SetAlpha(0)
     panel:AlphaTo(255, 0.3, 0)
 
-    local segments = ParseColorTags(text)
-    local currentText = ""
-    local currentIndex = 1
+    local revealText = ""
     local tokens = {}
-
-    for _, seg in ipairs(segments) do
-        if typeMode == "word" then
-            for word in string.gmatch(seg.text, "%S+") do
-                table.insert(tokens, { word .. " ", seg.color })
-            end
-        else
-            for i = 1, #seg.text do
-                table.insert(tokens, { seg.text:sub(i, i), seg.color })
-            end
+    if typeMode == "word" then
+        for word in string.gmatch(text, "%S+") do
+            table.insert(tokens, word .. " ")
+        end
+    else
+        for i = 1, #text do
+            table.insert(tokens, text:sub(i, i))
         end
     end
 
-    local revealList = {}
+    local currentIndex = 1
     local iconAngle = 0
     local iconAlpha = 255
 
-    -- Paint function
+    -- Paint
     panel.Paint = function(self, w, h)
-        draw.RoundedBox(8, 0, 0, w, h, Color(0, 0, 0, 160))
+        draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 160))
 
         if iconMat then
             surface.SetDrawColor(255, 255, 255, iconAlpha)
             surface.SetMaterial(iconMat)
-            local size = 64
-            local x = 10 + size / 2
+            local size = 48
+            local x = 20 + size / 2
             local y = h / 2
             if animateIcon == "spin" then
                 iconAngle = iconAngle + FrameTime() * 180
                 surface.DrawTexturedRectRotated(x, y, size, size, iconAngle)
             else
-                surface.DrawTexturedRect(10, y - size / 2, size, size)
+                surface.DrawTexturedRect(20, y - size / 2, size, size)
             end
         end
 
-        local x = iconMat and 84 or w / 2
-        local y = h / 2
+        surface.SetFont(font)
+        surface.SetTextColor(color)
+
+        local textX = iconMat and 80 or w / 2
         local align = iconMat and TEXT_ALIGN_LEFT or TEXT_ALIGN_CENTER
 
-        surface.SetFont(fontID)
-        local totalText = ""
-        for _, part in ipairs(revealList) do totalText = totalText .. part[1] end
-
-        local curX = x
-        for _, part in ipairs(revealList) do
-            local str, clr = part[1], part[2]
-            surface.SetTextColor(clr)
-            surface.SetTextPos(curX, y - fontSize / 2)
-            surface.SetFont(fontID)
-            surface.DrawText(str)
-            local w = surface.GetTextSize(str)
-            curX = curX + w
-        end
+        surface.SetTextPos(textX, h / 2 - fontSize / 2)
+        surface.DrawText(revealText)
     end
 
-    -- Typing animation
+    -- Typewriter animation
     local delay = (typeMode == "word") and 0.08 or 0.035
-    local timerID = "Popup_" .. CurTime() .. "_" .. math.random(99999)
+    local timerID = "PopupType_" .. CurTime() .. "_" .. math.random(99999)
 
     timer.Create(timerID, delay, #tokens, function()
         if not IsValid(panel) then return end
-        local entry = tokens[currentIndex]
-        if entry then
-            table.insert(revealList, entry)
-            if soundEnabled then surface.PlaySound(typingSound) end
-            currentIndex = currentIndex + 1
-        end
+        revealText = revealText .. tokens[currentIndex]
+        if soundEnabled then surface.PlaySound(typingSound) end
+        currentIndex = currentIndex + 1
     end)
 
     -- Flash animation
