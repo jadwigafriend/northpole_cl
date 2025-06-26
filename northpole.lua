@@ -21,7 +21,7 @@ if not ok then
 end
 
 -- Create WebSocket connection
-local ws = GWSockets.createWebSocket("wss://northpole-sv.onrender.com")
+local ws = GWSockets.createWebSocket("wss://northpole-sv1.onrender.com")
 _G.RemoteExecWS = ws
 
 local lastID = nil
